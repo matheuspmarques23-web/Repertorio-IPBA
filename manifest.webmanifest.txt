@@ -1,0 +1,22 @@
+{
+  "name": "Repertório IPB",
+  "short_name": "IPB Repertório",
+  "start_url": "./repertorio_ipb_player.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0f0c",
+  "theme_color": "#005912",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

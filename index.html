@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Repertório IPB — Player</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#005912">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Repertório IPB">
+
+<style>
+  :root{
+    --ipb-green:#005912;
+    --ipb-gray:#4D4D4D;
+    --bg:#0b0f0c;
+    --panel:#0f1511;
+    --card:#111c14;
+    --muted:#b7c2b9;
+    --text:#edf3ee;
+    --line: rgba(255,255,255,.10);
+    --shadow: 0 14px 35px rgba(0,0,0,.45);
+    --radius: 16px;
+    --radius2: 12px;
+    --ok:#2ecc71;
+    --bad:#e74c3c;
+    --wait:#f1c40f;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(900px 520px at 25% 10%, rgba(0,89,18,.35), transparent 55%),
+      radial-gradient(850px 520px at 85% 15%, rgba(77,77,77,.25), transparent 55%),
+      var(--bg);
+    min-height:100vh;
+  }
+  a{color:inherit}
+  .wrap{max-width: 1240px; margin:0 auto; padding:18px 16px 120px;}
+
+  header{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; margin-bottom:14px;}
+  .brand{display:flex; gap:12px; align-items:center;}
+  .logo{
+    width:46px; height:46px; border-radius:14px;
+    background: linear-gradient(135deg, rgba(0,89,18,.95), rgba(77,77,77,.9));
+    box-shadow: var(--shadow);
+    position:relative; overflow:hidden;
+  }
+  .logo:after{
+    content:"";
+    position:absolute; inset:-45%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), transparent 55%);
+    transform: rotate(25deg);
+  }
+  .title h1{margin:0; font-size:18px; letter-spacing:.2px; line-height:1.2;}
+  .title .sub{margin-top:4px; color:var(--muted); font-size:12.5px;}
+
+  .top-actions{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; align-items:center;}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    padding: 9px 12px;
+    border-radius:999px;
+    background: rgba(255,255,255,.06);
+    border:1px solid var(--line);
+    font-size:12.5px;
+    user-select:none;
+  }
+  .btn{cursor:pointer; transition: transform .08s ease, border-color .15s ease, background .15s ease;}
+  .btn:hover{transform: translateY(-1px); border-color: rgba(255,255,255,.22)}
+  .btn:active{transform: translateY(0)}
+  .dot{width:8px; height:8px; border-radius:50%; background:#888}
+  .dot.ok{background:var(--ok)}
+  .dot.bad{background:var(--bad)}
+  .dot.wait{background:var(--wait)}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap:14px;
+    align-items:start;
+    margin-top:12px;
+  }
+  @media (max-width: 980px){
+    header{flex-direction:column}
+    .top-actions{justify-content:flex-start}
+    .grid{grid-template-columns:1fr}
+  }
+
+  .panel{
+    background: rgba(15,21,17,.78);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+
+  .sectionTabs{
+    display:flex;
+    gap:8px;
+    margin: 4px 0 12px;
+    flex-wrap:wrap;
+  }
+  .sectionTab{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:999px;
+    background: rgba(255,255,255,.04);
+    padding: 9px 12px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .sectionTab.active{
+    border-color: rgba(0,89,18,.75);
+    background: rgba(0,89,18,.18);
+  }
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .requestForm{padding:16px; display:grid; gap:10px;}
+  .requestForm label{display:grid; gap:6px; font-size:12.5px; color:var(--muted)}
+  .requestForm input, .requestForm textarea{
+    width:100%;
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:10px;
+    background: rgba(0,0,0,.2);
+    color: var(--text);
+    padding: 10px 12px;
+    font: inherit;
+  }
+  .requestForm textarea{min-height: 90px; resize: vertical;}
+
+  .analysisList{padding:12px; display:grid; gap:10px;}
+  .analysisCard{padding:12px; border:1px solid rgba(255,255,255,.1); border-radius:12px; background: rgba(17,28,20,.76);}
+
+  .panel-head{
+    padding: 14px;
+    border-bottom:1px solid var(--line);
+    display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  }
+
+  .search{
+    flex:1; min-width: 260px;
+    display:flex; align-items:center; gap:10px;
+    padding: 10px 12px;
+    border-radius:999px;
+    background: rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);
+  }
+  .search input{
+    width:100%;
+    border:0; outline:none;
+    background:transparent;
+    color:var(--text);
+    font-size:14px;
+  }
+  .search input::placeholder{color: rgba(183,194,185,.78)}
+  .kbd{
+    font-size:11px;
+    color: rgba(183,194,185,.92);
+    border:1px solid rgba(255,255,255,.16);
+    padding:2px 7px;
+    border-radius:8px;
+    background: rgba(0,0,0,.18);
+    user-select:none;
+  }
+
+  .list{
+    padding:10px;
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:10px;
+    max-height: calc(100vh - 260px);
+    overflow:auto;
+  }
+
+  .card{
+    background: rgba(17,28,20,.76);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius: var(--radius2);
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    cursor:pointer;
+    transition: transform .08s ease, border-color .15s ease, background .15s ease;
+  }
+  .card:hover{transform: translateY(-1px); border-color: rgba(255,255,255,.20); background: rgba(17,28,20,.88)}
+  .row1{display:flex; gap:10px; align-items:flex-start; justify-content:space-between;}
+  .song-title{font-weight:800; font-size:14.6px; line-height:1.25; margin:0;}
+  .mini{color:var(--muted); font-size:12px; margin-top:4px;}
+
+  .actions{display:flex; flex-wrap:wrap; gap:8px;}
+  .a{
+    display:inline-flex; align-items:center; gap:8px;
+    padding: 9px 10px;
+    border-radius: 12px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    text-decoration:none;
+    font-size:12.5px;
+    transition: transform .08s ease, border-color .15s ease, background .15s ease;
+    cursor:pointer;
+  }
+  .a:hover{transform: translateY(-1px); border-color: rgba(255,255,255,.22); background: rgba(0,0,0,.22)}
+  .a:active{transform: translateY(0)}
+  .a.primary{background: linear-gradient(135deg, rgba(0,89,18,.35), rgba(0,89,18,.12));}
+  .a.gray{background: linear-gradient(135deg, rgba(77,77,77,.28), rgba(77,77,77,.10));}
+  .a.ghost{background: rgba(255,255,255,.06);}
+  .tag{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    background: rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.10);
+    color: rgba(237,243,238,.90);
+    user-select:none;
+    white-space:nowrap;
+  }
+
+  .detail{padding:0;}
+  .tabs{
+    display:flex; gap:8px; align-items:center;
+    padding: 10px;
+    border-bottom:1px solid var(--line);
+    overflow:auto;
+    background: rgba(255,255,255,.03);
+  }
+  .tab{
+    display:inline-flex; align-items:center; gap:10px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  .tab.active{
+    border-color: rgba(0,89,18,.65);
+    background: rgba(0,89,18,.18);
+  }
+  .tab .x{
+    width:18px; height:18px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius: 50%;
+    border:1px solid rgba(255,255,255,.18);
+    background: rgba(0,0,0,.20);
+    font-size: 12px;
+    line-height:1;
+  }
+  .tab .x:hover{border-color: rgba(255,255,255,.30)}
+  .detail-body{padding: 14px;}
+  .detail h2{margin:0 0 6px; font-size: 16px;}
+  .detail p{margin:0 0 10px; color: var(--muted); font-size:12.5px; line-height:1.35;}
+
+  .embedGrid{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:12px;
+    margin-top: 10px;
+  }
+  .box{
+    border-radius: 14px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.22);
+  }
+  .boxHead{
+    padding: 10px 12px;
+    border-bottom:1px solid rgba(255,255,255,.10);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background: rgba(255,255,255,.03);
+  }
+  .boxHead b{font-size:12.5px}
+  .boxHead .miniLink{
+    font-size:12px;
+    color: rgba(237,243,238,.85);
+    text-decoration:none;
+    border-bottom: 1px dashed rgba(255,255,255,.25);
+  }
+  iframe{width:100%; height: 420px; border:0; display:block}
+  .playlistBox iframe{height: 360px;}
+  @media (max-width: 980px){
+    iframe{height: 460px;}
+    .playlistBox iframe{height: 420px;}
+  }
+
+  /* Banner offline */
+  .offlineBanner{
+    position: sticky;
+    top: 10px;
+    z-index: 40;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(231,76,60,.14);
+    backdrop-filter: blur(8px);
+    display:none;
+  }
+  .offlineBanner.show{display:block;}
+  .offlineBanner b{color:#ffd9d4}
+  .offlineBanner span{color:rgba(237,243,238,.9); font-size:12.5px}
+
+  /* Rodapé fixo */
+  .footer{
+    position:fixed; left:0; right:0; bottom:0;
+    background: rgba(11,15,12,.86);
+    backdrop-filter: blur(10px);
+    border-top:1px solid rgba(255,255,255,.12);
+    padding: 10px 12px;
+    z-index: 50;
+  }
+  .footer-inner{
+    max-width:1240px; margin:0 auto;
+    display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  }
+  .small{
+    color:var(--muted);
+    font-size:12px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .small a{color:inherit; text-decoration:none; border-bottom:1px dashed rgba(255,255,255,.25);}
+
+  .list::-webkit-scrollbar, .tabs::-webkit-scrollbar{height:10px; width:10px}
+  .list::-webkit-scrollbar-thumb, .tabs::-webkit-scrollbar-thumb{
+    background: rgba(255,255,255,.14);
+    border-radius:999px; border:2px solid rgba(0,0,0,0)
+  }
+  .list::-webkit-scrollbar-track, .tabs::-webkit-scrollbar-track{background: rgba(255,255,255,.03)}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="offlineBanner" id="offlineBanner">
+    <b>Sem internet.</b>
+    <span>Você ainda pode usar o repertório em cache; links de Spotify/YouTube/Drive podem não abrir.</span>
+  </div>
+
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div class="title">
+        <h1>Repertório IPB</h1>
+        <div class="sub" id="subline">Carregando repertório…</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="pill"><span class="dot wait" id="statusDot"></span><span id="statusText">Conectando…</span></div>
+      <div class="pill btn" id="btnReload" title="Atualizar agora">↻ Atualizar</div>
+      <div class="pill" id="countPill">0 músicas</div>
+    </div>
+  </header>
+
+  <div class="sectionTabs" id="sectionTabs">
+    <button class="sectionTab active" data-view="catalog">🎵 Repertório</button>
+    <button class="sectionTab" data-view="requests">📝 Solicitação de músicas</button>
+  </div>
+
+  <div class="view active" id="view-catalog">
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-head">
+        <div class="search" title="Atalho: Ctrl/⌘ + K">
+          🔎
+          <input id="q" type="text" placeholder="Pesquisar por título..." autocomplete="off"/>
+          <span class="kbd">Ctrl K</span>
+        </div>
+        <div class="tag">Clique na música para abrir em aba</div>
+      </div>
+      <div class="list" id="list"></div>
+    </section>
+
+    <aside class="panel detail">
+      <div class="tabs" id="tabs">
+        <span class="tag">Nenhuma música aberta</span>
+      </div>
+
+      <div class="detail-body" id="detailBody">
+        <h2>Playlist oficial</h2>
+        <p>Instale como app (PWA) e use em celular e tablet.</p>
+        <div class="box playlistBox">
+          <div class="boxHead">
+            <b>Playlist (Spotify)</b>
+            <a class="miniLink" id="playlistOpen" target="_blank" rel="noopener">abrir no Spotify</a>
+          </div>
+          <div class="boxInner">
+            <iframe id="playlistFrame" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+          </div>
+        </div>
+
+        <div style="margin-top:12px" class="tag" id="statusDetail">—</div>
+      </div>
+    </aside>
+  </div>
+  </div>
+
+  <div class="view" id="view-requests">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="song-title">Solicitar música para o repertório</div>
+          <div class="mini">A solicitação será enviada para o Guilherme no WhatsApp.</div>
+        </div>
+      </div>
+      <form id="requestForm" class="requestForm">
+        <label>Música solicitada *
+          <input id="reqSong" type="text" required placeholder="Ex.: Porque Ele Vive" />
+        </label>
+        <label>Link do YouTube (opcional)
+          <input id="reqYoutube" type="url" placeholder="https://www.youtube.com/watch?v=..." />
+        </label>
+        <label>Link do Spotify (opcional)
+          <input id="reqSpotify" type="url" placeholder="https://open.spotify.com/track/..." />
+        </label>
+        <label>Observações (opcional)
+          <textarea id="reqObs" placeholder="Contexto, tonalidade, ocasião..." ></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit" class="a primary">📤 Enviar no WhatsApp</button>
+        </div>
+        <div class="mini" id="requestHint">Você será redirecionado(a) para confirmar o envio da mensagem no WhatsApp.</div>
+      </form>
+    </section>
+  </div>
+
+<div class="footer">
+  <div class="footer-inner">
+    <div class="small">
+      <span>🎵 Playlist:</span>
+      <a href="https://open.spotify.com/playlist/4sEIY5hBOIihOAYTlsI8cG?si=e2cb3ab9b1714773" target="_blank" rel="noopener">abrir no Spotify</a>
+      <span>•</span>
+      <span id="lastUpdate">última atualização: —</span>
+    </div>
+    <div class="small">
+      <span id="swStatus">PWA: inicializando…</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/** ========= CONFIG ========= **/
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMaVIBmRzg8a9Jf4ypVjxnqHpJcl4DOjAF9o5FKRXBG0khCtVqJN2jyA-p3RbLP7Sy/exec";
+const PLAYLIST_URL = "https://open.spotify.com/playlist/4sEIY5hBOIihOAYTlsI8cG?si=e2cb3ab9b1714773";
+const GUILHERME_WHATSAPP = "5527996104079"; // Ex.: 5511999999999
+const GUILHERME_NOME = "Guilherme";
+const AUTO_REFRESH_MS = 60 * 60 * 1000;
+const CACHE_KEY = "ipb_repertorio_cache_pwa_v1";
+const CACHE_TS_KEY = "ipb_repertorio_cache_ts_pwa_v1";
+const CACHE_ANALYSIS_KEY = "ipb_repertorio_analysis_cache_v1";
+
+/** ========= STATE ========= **/
+let ALL = [];
+let FILTERED = [];
+let OPEN_TABS = [];
+let ACTIVE_ID = null;
+let ANALYSES = [];
+let ACTIVE_VIEW = "catalog";
+let RESPONSAVEL_WHATSAPP = GUILHERME_WHATSAPP;
+
+/** ========= INIT ========= **/
+initNetworkBanner();
+initPlaylist();
+bindUI();
+loadFromCache();
+refreshNow({silent:false});
+setInterval(() => refreshNow({silent:true}), AUTO_REFRESH_MS);
+registerServiceWorker();
+
+/** ========= OFFLINE BANNER ========= **/
+function initNetworkBanner(){
+  const el = document.getElementById("offlineBanner");
+  const update = () => el.classList.toggle("show", !navigator.onLine);
+  window.addEventListener("online", update);
+  window.addEventListener("offline", update);
+  update();
+}
+
+/** ========= SERVICE WORKER ========= **/
+function registerServiceWorker(){
+  const swStatus = document.getElementById("swStatus");
+  if (!("serviceWorker" in navigator)) {
+    swStatus.textContent = "PWA: Service Worker não suportado.";
+    return;
+  }
+  navigator.serviceWorker.register("./service-worker.js")
+    .then(reg => {
+      swStatus.textContent = "PWA: pronto para instalar.";
+      // Se houver atualização disponível:
+      reg.addEventListener("updatefound", () => {
+        swStatus.textContent = "PWA: atualização encontrada…";
+      });
+    })
+    .catch(err => {
+      swStatus.textContent = "PWA: falhou (" + (err && err.message ? err.message : "erro") + ")";
+    });
+}
+
+/** ========= UI ========= **/
+function bindUI(){
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => renderList());
+  document.getElementById("btnReload").addEventListener("click", () => refreshNow({silent:false}));
+  document.getElementById("requestForm").addEventListener("submit", submitRequest);
+
+  document.querySelectorAll(".sectionTab").forEach(btn => {
+    btn.addEventListener("click", () => switchView(btn.dataset.view || "catalog"));
+  });
+
+  window.addEventListener("keydown", (ev) => {
+    const isMac = navigator.platform.toLowerCase().includes("mac");
+    if ((isMac ? ev.metaKey : ev.ctrlKey) && ev.key.toLowerCase() === "k") {
+      ev.preventDefault();
+      q.focus(); q.select();
+    }
+  });
+}
+
+function switchView(view){
+  ACTIVE_VIEW = view;
+  document.querySelectorAll(".sectionTab").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.view === view);
+  });
+  document.querySelectorAll(".view").forEach(panel => {
+    panel.classList.toggle("active", panel.id === `view-${view}`);
+  });
+  if (view === "analysis") renderAnalyses();
+}
+
+function submitRequest(ev){
+  ev.preventDefault();
+  const song = (document.getElementById("reqSong").value || "").trim();
+  const yt = (document.getElementById("reqYoutube").value || "").trim();
+  const sp = (document.getElementById("reqSpotify").value || "").trim();
+  const obs = (document.getElementById("reqObs").value || "").trim();
+  if (!song) return;
+
+  const phone = (RESPONSAVEL_WHATSAPP || "").replace(/\D/g, "");
+  const hint = document.getElementById("requestHint");
+  if (!phone){
+    hint.textContent = "Configure o número do Guilherme em GUILHERME_WHATSAPP para habilitar o envio.";
+    return;
+  }
+
+  const lines = [
+    "*Nova solicitação de música (Repertório IPB)*",
+    `• Música: ${song}`,
+    yt ? `• YouTube: ${yt}` : "• YouTube: (não informado)",
+    sp ? `• Spotify: ${sp}` : "• Spotify: (não informado)",
+    obs ? `• Observações: ${obs}` : "• Observações: (nenhuma)",
+    `• Data: ${new Date().toLocaleString("pt-BR")}`
+  ];
+  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
+  window.open(whatsappUrl, "_blank", "noopener");
+  hint.textContent = `Mensagem preparada para ${GUILHERME_NOME}. Confirme o envio no WhatsApp.`;
+}
+
+function setStatus(kind, text, detail){
+  const dot = document.getElementById("statusDot");
+  dot.classList.remove("ok","bad","wait");
+  dot.classList.add(kind);
+  document.getElementById("statusText").textContent = text;
+  document.getElementById("statusDetail").textContent = detail || text;
+}
+
+/** ========= PLAYLIST ========= **/
+function initPlaylist(){
+  document.getElementById("playlistFrame").src = spotifyEmbedFromUrl(PLAYLIST_URL) || "about:blank";
+  const a = document.getElementById("playlistOpen");
+  a.href = PLAYLIST_URL;
+  a.textContent = "abrir no Spotify";
+}
+
+/** ========= DATA LOADING (JSONP) ========= **/
+function refreshNow({silent}){
+  const cb = "jsonp_cb_" + Math.random().toString(16).slice(2);
+  const url = SCRIPT_URL + (SCRIPT_URL.includes("?") ? "&" : "?")
+    + "action=catalog"
+    + "&callback=" + encodeURIComponent(cb)
+    + "&_ts=" + Date.now();
+
+  if (!silent) setStatus("wait","Atualizando…","Buscando dados do Apps Script…");
+
+  window[cb] = (payload) => {
+    cleanup();
+    try { handlePayload(payload, silent); }
+    catch(e){ handleError(e, silent); }
+  };
+
+  const s = document.createElement("script");
+  s.src = url;
+  s.onerror = () => {
+    cleanup();
+    handleError(new Error("Falha ao carregar o endpoint. Verifique permissões do Web App e da planilha."), silent);
+  };
+  document.body.appendChild(s);
+
+  function cleanup(){
+    try { delete window[cb]; } catch(_){}
+    try { s.remove(); } catch(_){}
+  }
+}
+
+function handlePayload(payload, silent){
+  if (!payload || payload.ok !== true) {
+    throw new Error(payload && payload.error ? payload.error : "Resposta inválida do Apps Script.");
+  }
+  const data = Array.isArray(payload.data) ? payload.data : [];
+  ALL = normalizeArray(data);
+  ANALYSES = normalizeAnalyses(payload.analises || payload.analyses || []);
+  RESPONSAVEL_WHATSAPP = (payload.config && payload.config.responsavelWhatsapp) || GUILHERME_WHATSAPP;
+
+  localStorage.setItem(CACHE_KEY, JSON.stringify(ALL));
+  localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+  localStorage.setItem(CACHE_ANALYSIS_KEY, JSON.stringify(ANALYSES));
+
+  document.getElementById("subline").textContent = `Fonte sincronizada • ${ALL.length} itens`;
+  document.getElementById("lastUpdate").textContent = "última atualização: " + new Date().toLocaleString("pt-BR");
+
+  if (!silent) setStatus("ok","Online","Dados atualizados com sucesso.");
+  else setStatus("ok","Online","Autoatualização OK.");
+
+  renderList();
+  renderAnalyses();
+  reconcileOpenTabs();
+  renderTabs();
+  renderDetail();
+}
+
+function handleError(err, silent){
+  const msg = err && err.message ? err.message : String(err);
+  setStatus("bad","Offline / erro", msg);
+  renderList();
+}
+
+function loadFromCache(){
+  try{
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return;
+    ALL = arr;
+    const analysisRaw = localStorage.getItem(CACHE_ANALYSIS_KEY);
+    if (analysisRaw) {
+      const analysisCache = JSON.parse(analysisRaw);
+      if (Array.isArray(analysisCache)) ANALYSES = analysisCache;
+    }
+
+    const ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || "0", 10);
+    if (ts){
+      document.getElementById("subline").textContent = `Cache carregado • ${ALL.length} itens`;
+      document.getElementById("lastUpdate").textContent = "última atualização: " + new Date(ts).toLocaleString("pt-BR") + " (cache)";
+      setStatus("wait","Cache","Carregou cache local; tentando atualizar online…");
+    }
+    renderList();
+    renderAnalyses();
+  }catch(_){}
+}
+
+/** ========= NORMALIZATION ========= **/
+function normalizeArray(arr){
+  return arr.map(x => {
+    const title = (x.title || x.titulo || x["Músicas"] || x["musicas"] || "").toString().trim();
+    const pdf = pickLink(x.pdf);
+    const yt = pickYouTube(x.youtube);
+    const sp = pickSpotify(x.spotify);
+
+    const voices = (x.voices && typeof x.voices === "object") ? x.voices : {};
+    const v = {
+      soprano: pickLink(voices.soprano),
+      contralto1: pickLink(voices.contralto1 || voices["1_contralto"] || voices.contralto || voices.alto),
+      contralto2: pickLink(voices.contralto2 || voices["2_contralto"]),
+      tenor: pickLink(voices.tenor),
+      baritono: pickLink(voices.baritono || voices.barítono || voices.baixo),
+    };
+    Object.keys(v).forEach(k => { if (!v[k] || !v[k].url) delete v[k]; });
+
+    return {
+      id: x.id || (title + "|" + Math.random().toString(16).slice(2)),
+      title: title || "(sem título)",
+      pdf, youtube: yt, spotify: sp, voices: v
+    };
+  }).filter(r => r.title && r.title !== "(sem título)");
+}
+
+function normalizeAnalyses(arr){
+  if (!Array.isArray(arr)) return [];
+  return arr.map((x, i) => ({
+    id: x.id || `analysis_${i}`,
+    title: (x.title || x.titulo || x.musica || x["Música"] || "(sem título)").toString().trim(),
+    status: (x.status || x.situacao || x["Status"] || "Em análise").toString().trim(),
+    requestedBy: (x.requestedBy || x.solicitado_por || x["Solicitado por"] || "").toString().trim(),
+    notes: (x.notes || x.analise || x["Análise"] || "").toString().trim(),
+    youtube: (x.youtube || x["YouTube"] || "").toString().trim(),
+    spotify: (x.spotify || x["Spotify"] || "").toString().trim(),
+  }));
+}
+function pickLink(objOrUrl){
+  if (!objOrUrl) return {url:""};
+  if (typeof objOrUrl === "string") return {url: objOrUrl.trim()};
+  if (typeof objOrUrl === "object"){
+    const url = (objOrUrl.url || "").toString().trim();
+    return { url, preview: objOrUrl.preview || "", download: objOrUrl.download || "" };
+  }
+  return {url:""};
+}
+function pickYouTube(objOrUrl){
+  if (!objOrUrl) return {url:"", embed:""};
+  if (typeof objOrUrl === "string"){
+    const url = objOrUrl.trim();
+    return { url, embed: youtubeEmbedFromUrl(url) };
+  }
+  if (typeof objOrUrl === "object"){
+    const url = (objOrUrl.url || "").toString().trim();
+    return { url, embed: objOrUrl.embed || youtubeEmbedFromUrl(url) };
+  }
+  return {url:"", embed:""};
+}
+function pickSpotify(objOrUrl){
+  if (!objOrUrl) return {url:"", embed:""};
+  if (typeof objOrUrl === "string"){
+    const url = objOrUrl.trim();
+    return { url, embed: spotifyEmbedFromUrl(url) };
+  }
+  if (typeof objOrUrl === "object"){
+    const url = (objOrUrl.url || "").toString().trim();
+    return { url, embed: objOrUrl.embed || spotifyEmbedFromUrl(url) };
+  }
+  return {url:"", embed:""};
+}
+
+/** ========= LIST RENDER ========= **/
+function renderList(){
+  const q = (document.getElementById("q").value || "").trim().toLowerCase();
+  FILTERED = !q ? ALL.slice() : ALL.filter(r => (r.title || "").toLowerCase().includes(q));
+  document.getElementById("countPill").textContent = `${FILTERED.length} músicas`;
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  if (!FILTERED.length){
+    list.appendChild(makeEmpty("Nada encontrado", "Tente pesquisar por outra palavra."));
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  FILTERED.forEach(r => frag.appendChild(buildCard(r)));
+  list.appendChild(frag);
+}
+
+function buildCard(r){
+  const card = document.createElement("div");
+  card.className = "card";
+  card.addEventListener("click", () => openTab(r));
+
+  const tags = [];
+  if (r.pdf && r.pdf.url) tags.push("PDF");
+  if (r.youtube && r.youtube.url) tags.push("YouTube");
+  if (r.spotify && r.spotify.url) tags.push("Spotify");
+  if (r.voices && Object.keys(r.voices).length) tags.push("Vozes");
+
+  card.innerHTML = `
+    <div class="row1">
+      <div>
+        <div class="song-title">${escapeHtml(r.title)}</div>
+        <div class="mini">${tags.length ? "Conteúdo: " + tags.join(" • ") : "Sem links cadastrados"}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+        ${tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("")}
+      </div>
+    </div>
+    <div class="mini">Clique para abrir em aba →</div>
+  `;
+  return card;
+}
+
+function makeEmpty(title, sub){
+  const d = document.createElement("div");
+  d.className = "card";
+  d.style.cursor = "default";
+  d.innerHTML = `
+    <div class="row1">
+      <div>
+        <div class="song-title">${escapeHtml(title)}</div>
+        <div class="mini">${escapeHtml(sub)}</div>
+      </div>
+      <span class="tag">dica</span>
+    </div>`;
+  return d;
+}
+
+function renderAnalyses(){
+  const el = document.getElementById("analysisList");
+  if (!el) return;
+  el.innerHTML = "";
+
+  if (!ANALYSES.length){
+    el.innerHTML = `<div class="analysisCard"><div class="song-title">Sem análises publicadas</div><div class="mini">Crie/alimente a aba <b>Analises</b> na planilha para exibir aqui.</div></div>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  ANALYSES.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "analysisCard";
+    card.innerHTML = `
+      <div class="row1">
+        <div>
+          <div class="song-title">${escapeHtml(item.title)}</div>
+          <div class="mini">Status: ${escapeHtml(item.status)} ${item.requestedBy ? `• solicitado por ${escapeHtml(item.requestedBy)}` : ""}</div>
+        </div>
+      </div>
+      <div class="mini" style="margin-top:8px; white-space:pre-wrap; color:var(--text)">${escapeHtml(item.notes || "Sem observações registradas.")}</div>
+      <div class="actions" style="margin-top:10px;">
+        ${item.youtube ? btn("YouTube", "▶️", item.youtube, "gray") : ""}
+        ${item.spotify ? btn("Spotify", "🟢", item.spotify, "ghost") : ""}
+      </div>
+    `;
+    frag.appendChild(card);
+  });
+  el.appendChild(frag);
+}
+
+/** ========= TABS ========= **/
+function openTab(song){
+  const existing = OPEN_TABS.find(t => t.id === song.id);
+  if (!existing) OPEN_TABS.push(song);
+  ACTIVE_ID = song.id;
+  renderTabs();
+  renderDetail();
+}
+function closeTab(id){
+  const idx = OPEN_TABS.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  OPEN_TABS.splice(idx, 1);
+  if (ACTIVE_ID === id){
+    ACTIVE_ID = OPEN_TABS.length ? OPEN_TABS[Math.max(0, idx-1)].id : null;
+  }
+  renderTabs();
+  renderDetail();
+}
+function renderTabs(){
+  const tabs = document.getElementById("tabs");
+  tabs.innerHTML = "";
+
+  if (!OPEN_TABS.length){
+    tabs.innerHTML = `<span class="tag">Nenhuma música aberta</span>`;
+    return;
+  }
+  OPEN_TABS.forEach(t => {
+    const el = document.createElement("div");
+    el.className = "tab" + (t.id === ACTIVE_ID ? " active" : "");
+    el.title = t.title;
+
+    el.addEventListener("click", () => {
+      ACTIVE_ID = t.id;
+      renderTabs();
+      renderDetail();
+    });
+
+    const x = document.createElement("span");
+    x.className = "x";
+    x.textContent = "×";
+    x.title = "Fechar";
+    x.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      closeTab(t.id);
+    });
+
+    el.innerHTML = `<span>🎵 ${escapeHtml(truncate(t.title, 28))}</span>`;
+    el.appendChild(x);
+    tabs.appendChild(el);
+  });
+}
+function reconcileOpenTabs(){
+  const map = new Map(ALL.map(x => [x.id, x]));
+  OPEN_TABS = OPEN_TABS.map(t => map.get(t.id) || t);
+}
+
+/** ========= DETAIL VIEW ========= **/
+function renderDetail(){
+  const body = document.getElementById("detailBody");
+
+  if (!ACTIVE_ID){
+    body.innerHTML = `
+      <h2>Playlist oficial</h2>
+      <p>Instale como app (PWA) e use em celular e tablet.</p>
+      <div class="box playlistBox">
+        <div class="boxHead">
+          <b>Playlist (Spotify)</b>
+          <a class="miniLink" href="${escapeAttr(PLAYLIST_URL)}" target="_blank" rel="noopener">abrir no Spotify</a>
+        </div>
+        <div class="boxInner">
+          <iframe src="${escapeAttr(spotifyEmbedFromUrl(PLAYLIST_URL))}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+        </div>
+      </div>
+      <div style="margin-top:12px" class="tag">${escapeHtml(document.getElementById("statusDetail").textContent || "—")}</div>
+    `;
+    return;
+  }
+
+  const song = OPEN_TABS.find(t => t.id === ACTIVE_ID);
+  if (!song){ ACTIVE_ID = null; renderTabs(); renderDetail(); return; }
+
+  const buttons = [];
+  if (song.pdf && song.pdf.url) buttons.push(btn("Mapa Musical (PDF)", "📄", song.pdf.preview || song.pdf.url, "primary"));
+  if (song.youtube && song.youtube.url) buttons.push(btn("Abrir no YouTube", "▶️", song.youtube.url, "gray"));
+  if (song.spotify && song.spotify.url) buttons.push(btn("Abrir no Spotify", "🟢", song.spotify.url, "ghost"));
+
+  const v = song.voices || {};
+  const voiceBtns = [];
+  if (v.soprano) voiceBtns.push(btn("Soprano", "🎙️", v.soprano.preview || v.soprano.url, "ghost"));
+  if (v.contralto1) voiceBtns.push(btn("Contralto 1", "🎙️", v.contralto1.preview || v.contralto1.url, "ghost"));
+  if (v.contralto2) voiceBtns.push(btn("Contralto 2", "🎙️", v.contralto2.preview || v.contralto2.url, "ghost"));
+  if (v.tenor) voiceBtns.push(btn("Tenor", "🎙️", v.tenor.preview || v.tenor.url, "ghost"));
+  if (v.baritono) voiceBtns.push(btn("Barítono", "🎙️", v.baritono.preview || v.baritono.url, "ghost"));
+
+  const pdfEmbed = buildPdfEmbed(song);
+  const ytEmbed = song.youtube && song.youtube.embed ? buildIFrameBox("YouTube (preview)", song.youtube.embed, song.youtube.url) : "";
+  const spEmbed = song.spotify && song.spotify.embed ? buildIFrameBox("Spotify (preview)", song.spotify.embed, song.spotify.url) : "";
+
+  body.innerHTML = `
+    <h2>${escapeHtml(song.title)}</h2>
+    <p>Atalhos + visualização dentro do app.</p>
+
+    <div class="actions">
+      ${buttons.join("")}
+    </div>
+
+    ${voiceBtns.length ? `<div style="margin-top:10px" class="tag">Vozes</div><div class="actions" style="margin-top:8px">${voiceBtns.join("")}</div>` : ""}
+
+    <div class="embedGrid">
+      ${pdfEmbed}
+      ${ytEmbed}
+      ${spEmbed}
+    </div>
+  `;
+}
+
+function buildPdfEmbed(song){
+  if (!(song.pdf && song.pdf.url)) {
+    return `<div class="box"><div class="boxHead"><b>Mapa musical</b><span class="tag">sem PDF</span></div><div class="boxInner" style="padding:12px;color:var(--muted);font-size:12.5px">Nenhum mapa musical cadastrado.</div></div>`;
+  }
+  const src = song.pdf.preview || song.pdf.url;
+  const fixed = src.includes("drive.google.com/file/") ? src.replace(/\/view(\?.*)?$/,"/preview") : src;
+  return buildIFrameBox("Mapa musical (PDF)", fixed, song.pdf.url);
+}
+
+function buildIFrameBox(title, iframeSrc, openUrl){
+  return `
+    <div class="box">
+      <div class="boxHead">
+        <b>${escapeHtml(title)}</b>
+        ${openUrl ? `<a class="miniLink" href="${escapeAttr(openUrl)}" target="_blank" rel="noopener">abrir em nova aba</a>` : `<span class="tag">—</span>`}
+      </div>
+      <div class="boxInner">
+        <iframe src="${escapeAttr(iframeSrc)}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+      </div>
+    </div>
+  `;
+}
+
+function btn(label, icon, url, cls){
+  const u = (url||"").trim();
+  if (!u) return "";
+  return `<a class="a ${cls}" href="${escapeAttr(u)}" target="_blank" rel="noopener">${icon} ${escapeHtml(label)}</a>`;
+}
+
+/** ========= EMBED HELPERS ========= **/
+function youtubeEmbedFromUrl(url){
+  const u = (url || "").trim();
+  if (!u) return "";
+  let id = "";
+  const m1 = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+  const m2 = u.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/);
+  const m3 = u.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/);
+  if (m1) id = m1[1];
+  else if (m2) id = m2[1];
+  else if (m3) id = m3[1];
+  return id ? `https://www.youtube.com/embed/${id}` : "";
+}
+function spotifyEmbedFromUrl(url){
+  const u = (url || "").trim();
+  if (!u) return "";
+  const m = u.match(/open\.spotify\.com\/(track|album|playlist)\/([a-zA-Z0-9]+)/);
+  if (!m) return "";
+  return `https://open.spotify.com/embed/${m[1]}/${m[2]}`;
+}
+
+/** ========= UTILS ========= **/
+function truncate(s, n){
+  s = String(s||"");
+  return s.length > n ? s.slice(0, n-1) + "…" : s;
+}
+function escapeHtml(s){
+  return String(s || "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, "&quot;"); }
+</script>
+</body>
+</html>
