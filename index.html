@@ -333,8 +333,7 @@
   }
   .small a{color:inherit; text-decoration:none; border-bottom:1px dashed rgba(255,255,255,.25);}
 
-  .spotifyDock{display:flex; flex-direction:column; gap:8px; width:min(420px,100%);} /* [SPOTIFY] */
-  .spotifyDock.minimized .spotifyEmbed, .spotifyDock.minimized .spotifyNow{display:none;} /* [SPOTIFY] */
+  .spotifyDock{display:flex; flex-direction:column; gap:8px; width:min(520px,100%);} /* [SPOTIFY] */
   .spotifyControls{display:flex; align-items:center; gap:8px; flex-wrap:wrap;} /* [SPOTIFY] */
   .spotifyNow{font-size:12px; color:var(--muted);} /* [SPOTIFY] */
   .spotifyEmbed{width:100%; min-height:80px; border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden;} /* [SPOTIFY] */
@@ -459,7 +458,6 @@
         <button type="button" class="a ghost" id="spPrev">⏮️ Anterior</button>
         <button type="button" class="a ghost" id="spPlayPause">⏯️ Play/Pause</button>
         <button type="button" class="a ghost" id="spNext">⏭️ Próximo</button>
-        <button type="button" class="a ghost" id="spMinimize" aria-expanded="true">🗕 Minimizar</button> <!-- [SPOTIFY] -->
         <span class="tag" id="spState">Pausado</span>
       </div>
       <div class="spotifyNow" id="spNowPlaying">Tocando agora: —</div>
@@ -492,7 +490,6 @@ const spotifyQueue = (() => {
   let loadTicket = 0;
   let wasNearEnd = false;
   let lastAutoNextAt = 0;
-  let pendingResume = false; // [SPOTIFY]
 
   const nowEl = () => document.getElementById("spNowPlaying");
   const stateEl = () => document.getElementById("spState");
@@ -501,8 +498,6 @@ const spotifyQueue = (() => {
     document.getElementById("spPrev").addEventListener("click", () => jump(-1, true));
     document.getElementById("spNext").addEventListener("click", () => jump(1, true));
     document.getElementById("spPlayPause").addEventListener("click", togglePlayPause);
-    document.getElementById("spMinimize").addEventListener("click", toggleMinimize); // [SPOTIFY]
-    restoreMinimizeState(); // [SPOTIFY]
   }
 
   function onApiReady(SpotifyIframeApi){
@@ -516,10 +511,6 @@ const spotifyQueue = (() => {
       }
       refreshQueueFromDom();
       updateNowPlaying();
-      if (pendingResume && currentIndex >= 0) { // [SPOTIFY]
-        pendingResume = false;
-        loadCurrent(true);
-      }
     });
   }
 
@@ -570,7 +561,6 @@ const spotifyQueue = (() => {
     queue[currentIndex] = { el: sourceElement, uri, title };
     updateNowPlaying();
     loadCurrent(true);
-    if (!controller) pendingResume = true; // [SPOTIFY]
   }
 
   function loadCurrent(shouldResume){
@@ -596,17 +586,11 @@ const spotifyQueue = (() => {
     if (currentIndex < 0) currentIndex = 0;
     else currentIndex = (currentIndex + step + queue.length) % queue.length;
     loadCurrent(userInteracted);
-    if (!controller && userInteracted) pendingResume = true; // [SPOTIFY]
   }
 
   function togglePlayPause(){
     userInteracted = true;
-    if (!controller) {
-      if (currentIndex < 0) { refreshQueueFromDom(); currentIndex = queue.length ? 0 : -1; }
-      pendingResume = currentIndex >= 0;
-      updateNowPlaying();
-      return;
-    }
+    if (!controller) return;
     if (typeof controller.togglePlay === "function") controller.togglePlay();
   }
 
@@ -645,21 +629,6 @@ const spotifyQueue = (() => {
     const m = v.match(/open\.spotify\.com\/(track|album|playlist)\/([a-zA-Z0-9]+)/i);
     if (!m) return "";
     return `spotify:${m[1].toLowerCase()}:${m[2]}`;
-  }
-
-  function toggleMinimize(){ // [SPOTIFY]
-    const dock = document.querySelector(".spotifyDock");
-    const btn = document.getElementById("spMinimize");
-    if (!dock || !btn) return;
-    const minimized = dock.classList.toggle("minimized");
-    btn.textContent = minimized ? "🗖 Expandir" : "🗕 Minimizar";
-    btn.setAttribute("aria-expanded", String(!minimized));
-    localStorage.setItem("ipb_spotify_minimized", minimized ? "1" : "0");
-  }
-
-  function restoreMinimizeState(){ // [SPOTIFY]
-    const shouldMinimize = localStorage.getItem("ipb_spotify_minimized") === "1";
-    if (shouldMinimize) toggleMinimize();
   }
 
   return { init, onApiReady, refreshQueueFromDom, handleTrackClick };
