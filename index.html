@@ -49,6 +49,9 @@
   .logo{
     width:46px; height:46px; border-radius:14px;
     background: linear-gradient(135deg, rgba(0,89,18,.95), rgba(77,77,77,.9));
+    background-image: url("./icon-512.png"); /* [SPOTIFY] */
+    background-size: cover; /* [SPOTIFY] */
+    background-position: center; /* [SPOTIFY] */
     box-shadow: var(--shadow);
     position:relative; overflow:hidden;
   }
@@ -330,6 +333,13 @@
   }
   .small a{color:inherit; text-decoration:none; border-bottom:1px dashed rgba(255,255,255,.25);}
 
+  .spotifyDock{display:flex; flex-direction:column; gap:8px; width:min(420px,100%);} /* [SPOTIFY] */
+  .spotifyDock.minimized .spotifyEmbed, .spotifyDock.minimized .spotifyNow{display:none;} /* [SPOTIFY] */
+  .spotifyControls{display:flex; align-items:center; gap:8px; flex-wrap:wrap;} /* [SPOTIFY] */
+  .spotifyNow{font-size:12px; color:var(--muted);} /* [SPOTIFY] */
+  .spotifyEmbed{width:100%; min-height:80px; border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden;} /* [SPOTIFY] */
+  .spotifyEmbed iframe{height:80px !important;} /* [SPOTIFY] */
+
   .list::-webkit-scrollbar, .tabs::-webkit-scrollbar{height:10px; width:10px}
   .list::-webkit-scrollbar-thumb, .tabs::-webkit-scrollbar-thumb{
     background: rgba(255,255,255,.14);
@@ -444,19 +454,219 @@
     <div class="small">
       <span id="swStatus">PWA: inicializando…</span>
     </div>
+    <div class="spotifyDock"> <!-- [SPOTIFY] -->
+      <div class="spotifyControls"> <!-- [SPOTIFY] -->
+        <button type="button" class="a ghost" id="spPrev">⏮️ Anterior</button>
+        <button type="button" class="a ghost" id="spPlayPause">⏯️ Play/Pause</button>
+        <button type="button" class="a ghost" id="spNext">⏭️ Próximo</button>
+        <button type="button" class="a ghost" id="spMinimize" aria-expanded="true">🗕 Minimizar</button> <!-- [SPOTIFY] -->
+        <span class="tag" id="spState">Pausado</span>
+      </div>
+      <div class="spotifyNow" id="spNowPlaying">Tocando agora: —</div>
+      <div id="spotifyPlayer" class="spotifyEmbed"></div>
+    </div>
   </div>
 </div>
 
+<script async src="https://open.spotify.com/embed/iframe-api/v1"></script> <!-- [SPOTIFY] -->
 <script>
 /** ========= CONFIG ========= **/
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMaVIBmRzg8a9Jf4ypVjxnqHpJcl4DOjAF9o5FKRXBG0khCtVqJN2jyA-p3RbLP7Sy/exec";
 const PLAYLIST_URL = "https://open.spotify.com/playlist/4sEIY5hBOIihOAYTlsI8cG?si=e2cb3ab9b1714773";
+const PLAYLIST_URI = "spotify:playlist:4sEIY5hBOIihOAYTlsI8cG"; // [SPOTIFY]
 const GUILHERME_WHATSAPP = "5527996104079"; // Ex.: 5511999999999
 const GUILHERME_NOME = "Guilherme";
 const AUTO_REFRESH_MS = 60 * 60 * 1000;
 const CACHE_KEY = "ipb_repertorio_cache_pwa_v1";
 const CACHE_TS_KEY = "ipb_repertorio_cache_ts_pwa_v1";
 const CACHE_ANALYSIS_KEY = "ipb_repertorio_analysis_cache_v1";
+
+// [SPOTIFY]
+const spotifyQueue = (() => {
+  let api = null;
+  let controller = null;
+  let queue = [];
+  let currentIndex = -1;
+  let isPlaying = false;
+  let userInteracted = false;
+  let loadTimer = null;
+  let loadTicket = 0;
+  let wasNearEnd = false;
+  let lastAutoNextAt = 0;
+  let pendingResume = false; // [SPOTIFY]
+
+  const nowEl = () => document.getElementById("spNowPlaying");
+  const stateEl = () => document.getElementById("spState");
+
+  function init(){
+    document.getElementById("spPrev").addEventListener("click", () => jump(-1, true));
+    document.getElementById("spNext").addEventListener("click", () => jump(1, true));
+    document.getElementById("spPlayPause").addEventListener("click", togglePlayPause);
+    document.getElementById("spMinimize").addEventListener("click", toggleMinimize); // [SPOTIFY]
+    restoreMinimizeState(); // [SPOTIFY]
+  }
+
+  function onApiReady(SpotifyIframeApi){
+    api = SpotifyIframeApi;
+    const playerElement = document.getElementById("spotifyPlayer");
+    if (!playerElement || !api || typeof api.createController !== "function") return;
+    api.createController(playerElement, { width: "100%", height: 80, uri: PLAYLIST_URI }, (EmbedController) => { // [SPOTIFY]
+      controller = EmbedController;
+      if (controller && typeof controller.addListener === "function") {
+        controller.addListener("playback_update", onPlaybackUpdate);
+      }
+      refreshQueueFromDom();
+      updateNowPlaying();
+      if (pendingResume && currentIndex >= 0) { // [SPOTIFY]
+        pendingResume = false;
+        loadCurrent(true);
+      }
+    });
+  }
+
+  function onPlaybackUpdate(event){
+    const data = event && event.data ? event.data : event;
+    if (!data) return;
+    isPlaying = data.isPaused === false;
+    stateEl().textContent = isPlaying ? "Tocando" : "Pausado";
+
+    const duration = Number(data.duration || 0);
+    const position = Number(data.position || 0);
+    const nearEnd = duration > 0 && (duration - position) < 1000;
+    if (userInteracted && isPlaying && nearEnd && !wasNearEnd && Date.now() - lastAutoNextAt > 900) {
+      lastAutoNextAt = Date.now();
+      jump(1, false);
+    }
+    wasNearEnd = nearEnd;
+  }
+
+  function refreshQueueFromDom(){
+    const items = Array.from(document.querySelectorAll(".track-item"));
+    queue = items.map((el, idx) => {
+      const uri = extractSpotifyUri(el);
+      const title = (el.dataset.title || el.querySelector(".song-title")?.textContent || `Faixa ${idx + 1}`).trim();
+      el.dataset.queueIndex = String(idx);
+      if (uri) el.dataset.spotifyUri = uri;
+      return { el, title, uri };
+    }).filter(item => !!item.uri);
+
+    if (!queue.length) {
+      currentIndex = -1;
+      updateNowPlaying();
+    } else if (currentIndex >= queue.length) {
+      currentIndex = 0;
+      updateNowPlaying();
+    }
+  }
+
+  function handleTrackClick(song, sourceElement){
+    refreshQueueFromDom();
+    const uri = extractSpotifyUri(sourceElement);
+    const title = song && song.title ? song.title : (sourceElement?.dataset?.title || "—");
+    if (!uri) return;
+
+    userInteracted = true;
+    const byUri = queue.findIndex(item => item.uri === uri);
+    currentIndex = byUri >= 0 ? byUri : 0;
+    queue[currentIndex] = { el: sourceElement, uri, title };
+    updateNowPlaying();
+    loadCurrent(true);
+    if (!controller) pendingResume = true; // [SPOTIFY]
+  }
+
+  function loadCurrent(shouldResume){
+    if (!controller || currentIndex < 0 || !queue[currentIndex] || !queue[currentIndex].uri) return;
+    const uri = queue[currentIndex].uri;
+    const ticket = ++loadTicket;
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(() => {
+      if (ticket !== loadTicket) return;
+      if (typeof controller.loadUri === "function") controller.loadUri(uri);
+      if (shouldResume) {
+        if (typeof controller.resume === "function") controller.resume();
+        else if (typeof controller.togglePlay === "function") controller.togglePlay();
+      }
+      updateNowPlaying();
+    }, 180);
+  }
+
+  function jump(step, fromButton){
+    refreshQueueFromDom();
+    if (!queue.length) return;
+    if (fromButton) userInteracted = true;
+    if (currentIndex < 0) currentIndex = 0;
+    else currentIndex = (currentIndex + step + queue.length) % queue.length;
+    loadCurrent(userInteracted);
+    if (!controller && userInteracted) pendingResume = true; // [SPOTIFY]
+  }
+
+  function togglePlayPause(){
+    userInteracted = true;
+    if (!controller) {
+      if (currentIndex < 0) { refreshQueueFromDom(); currentIndex = queue.length ? 0 : -1; }
+      pendingResume = currentIndex >= 0;
+      updateNowPlaying();
+      return;
+    }
+    if (typeof controller.togglePlay === "function") controller.togglePlay();
+  }
+
+  function updateNowPlaying(){
+    if (currentIndex >= 0 && queue[currentIndex]) {
+      nowEl().textContent = `Tocando agora: ${queue[currentIndex].title}`;
+      return;
+    }
+    nowEl().textContent = "Tocando agora: —";
+  }
+
+  function extractSpotifyUri(el){
+    if (!el) return "";
+    const directUri = (el.dataset.spotifyUri || "").trim();
+    if (isValidSpotifyUri(directUri)) return directUri;
+
+    const byUrl = spotifyUriFromAny((el.dataset.spotifyUrl || "").trim());
+    if (byUrl) return byUrl;
+
+    const links = Array.from(el.querySelectorAll("a[href*='open.spotify.com/']"));
+    for (const link of links){
+      const uri = spotifyUriFromAny(link.getAttribute("href") || "");
+      if (uri) return uri;
+    }
+    return "";
+  }
+
+  function isValidSpotifyUri(uri){
+    return /^spotify:(track|album|playlist):[a-zA-Z0-9]+$/.test(uri || "");
+  }
+
+  function spotifyUriFromAny(value){
+    const v = (value || "").trim();
+    if (!v) return "";
+    if (isValidSpotifyUri(v)) return v;
+    const m = v.match(/open\.spotify\.com\/(?:embed\/)?(track|album|playlist)\/([a-zA-Z0-9]+)/i); // [SPOTIFY]
+    if (!m) return "";
+    return `spotify:${m[1].toLowerCase()}:${m[2]}`;
+  }
+
+  function toggleMinimize(){ // [SPOTIFY]
+    const dock = document.querySelector(".spotifyDock");
+    const btn = document.getElementById("spMinimize");
+    if (!dock || !btn) return;
+    const minimized = dock.classList.toggle("minimized");
+    btn.textContent = minimized ? "🗖 Expandir" : "🗕 Minimizar";
+    btn.setAttribute("aria-expanded", String(!minimized));
+    localStorage.setItem("ipb_spotify_minimized", minimized ? "1" : "0");
+  }
+
+  function restoreMinimizeState(){ // [SPOTIFY]
+    const shouldMinimize = localStorage.getItem("ipb_spotify_minimized") === "1";
+    if (shouldMinimize) toggleMinimize();
+  }
+
+  return { init, onApiReady, refreshQueueFromDom, handleTrackClick };
+})();
+
+window.onSpotifyIframeApiReady = (SpotifyIframeApi) => spotifyQueue.onApiReady(SpotifyIframeApi); // [SPOTIFY]
 
 /** ========= STATE ========= **/
 let ALL = [];
@@ -471,6 +681,7 @@ let RESPONSAVEL_WHATSAPP = GUILHERME_WHATSAPP;
 initNetworkBanner();
 initPlaylist();
 bindUI();
+spotifyQueue.init(); // [SPOTIFY]
 loadFromCache();
 refreshNow({silent:false});
 setInterval(() => refreshNow({silent:true}), AUTO_REFRESH_MS);
@@ -754,12 +965,18 @@ function renderList(){
   const frag = document.createDocumentFragment();
   FILTERED.forEach(r => frag.appendChild(buildCard(r)));
   list.appendChild(frag);
+  spotifyQueue.refreshQueueFromDom(); // [SPOTIFY]
 }
 
 function buildCard(r){
   const card = document.createElement("div");
-  card.className = "card";
-  card.addEventListener("click", () => openTab(r));
+  card.className = "card track-item"; // [SPOTIFY]
+  card.dataset.title = r.title || ""; // [SPOTIFY]
+  card.dataset.spotifyUrl = (r.spotify && r.spotify.url ? r.spotify.url : "").trim(); // [SPOTIFY]
+  card.addEventListener("click", () => { // [SPOTIFY]
+    openTab(r);
+    spotifyQueue.handleTrackClick(r, card);
+  });
 
   const tags = [];
   if (r.pdf && r.pdf.url) tags.push("PDF");
@@ -990,7 +1207,7 @@ function youtubeEmbedFromUrl(url){
 function spotifyEmbedFromUrl(url){
   const u = (url || "").trim();
   if (!u) return "";
-  const m = u.match(/open\.spotify\.com\/(track|album|playlist)\/([a-zA-Z0-9]+)/);
+  const m = u.match(/open\.spotify\.com\/(?:embed\/)?(track|album|playlist)\/([a-zA-Z0-9]+)/); // [SPOTIFY]
   if (!m) return "";
   return `https://open.spotify.com/embed/${m[1]}/${m[2]}`;
 }
